@@ -26,13 +26,16 @@ PROFILE="/etc/profile"
 def make_dir():
     for directory in (DOWNLOAD_DIR, RELEASE_DIR, BACKUP_DIR, RUN_DIR):
         run("mkdir -p %s" % directory)
-
+def make_special_dir(dir):
+    run("mkdir -p %s" % dir)
 
 def rsync_dir():
     # download目录里面应该有如下文件：jdk6 jdk7
     # release目录里面应该有如下文件：hbase drill
     for directory in (DOWNLOAD_DIR, RELEASE_DIR):
         local("rsync -avz --progress %s %s@%s:%s" % (directory, env.user, env.host, directory))
+def rsync_special_dir(dir):
+	local("rsync -avz --progress %s %s@%s:%s" % (dir, env.user, env.host, dir))
 def copy_config_tar():
     file=os.path.join(BACKUP_DIR,"config.tar.gz")
     local("rsync -avz --progress %s %s@%s:%s" % (file, env.user,env.host,file))
@@ -95,20 +98,35 @@ def enable_epel():
             sudo("rpm -ivh %s" % epel_pkg)
 
 
-def enable_cloudera_repo():
+def install_cloudera_repo():
     # 请参考CDH文档中Downloading and Installing an Earlier Release部分
-    repo_url = "http://archive.cloudera.com/cdh4/redhat/6/x86_64/cdh/cloudera-cdh4.repo"
-    repo_filename = "cloudera-cdh4.repo"
-    target_dir = "/etc/yum.repos.d/"
+    repo_url = "http://archive.cloudera.com/cdh4/one-click-install/redhat/6/x86_64/cloudera-cdh-4-0.x86_64.rpm"
     with cd(DOWNLOAD_DIR):
         run("wget %s" % repo_url)
-        run("sed -i 's/cdh\/4/cdh\/4.3.0/g' %s" % repo_filename)
-        sudo("cp %s %s" % (repo_filename, target_dir))
+	sudo("yum --nogpgcheck localinstall cloudera-cdh-4-0.x86_64.rpm")
     sudo("sudo rpm --import http://archive.cloudera.com/cdh4/redhat/6/x86_64/cdh/RPM-GPG-KEY-cloudera")
+    sudo("yum clean all")
+def uninstall_cloudera_repo():
+   if exists("/etc/yum.repos.d/cloudera-cdh4.repo"):
+	  sudo("rm /etc/yum.repos.d/cloudera-cdh4.repo")
+
 
 def install_datanode():
     sudo("yum -y install hadoop-hdfs-datanode")
-
+def install_namenode():
+    sudo("yum -y install hadoop-hdfs-namenode")
+def install_jobtracker():
+    sudo("yum -y install hadoop-0.20-mapreduce-jobtracker")
+def install_client():
+    sudo("yum -y install hadoop-client")
+def install_secondarynamenode(): 
+    sudo("yum -y install hadoop-hdfs-secondarynamenode")
+def install_resourcemanager():
+    sudo("yum -y install hadoop-yarn-resourcemanager")
+def install_nodemanager():
+    sudo("yum -y install hadoop-yarn-nodemanager")
+def install_yarn_mapreduce():
+    sudo("yum -y install hadoop-mapreduce")
 
 def install_tasktracker():
     sudo("yum -y install hadoop-0.20-mapreduce-tasktracker")
@@ -138,6 +156,10 @@ def install_ntp():
     sudo("/sbin/service ntpd start")
     sudo("ntpdate -u  pool.ntp.org")
 
+def install_fabric():
+   sudo("yum install gcc gcc-c++ autoconf automake")
+   sudo("yum install python-devel")
+   sudo("easy_install fabric")
 
 def modify_limits():
     # 修改hdfs和mapred用户的限制
