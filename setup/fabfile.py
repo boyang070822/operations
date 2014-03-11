@@ -6,7 +6,7 @@ datanode environment setup
 1. 检查cpu个数和核心个数、内存大小、磁盘个数和容量、操作系统版本
 2. 创建hadoop用户，配置免密码ssh（从本机、从远程机器）和免密码sudo
 3. 修改open files和nproc限制，修改timezone，配置ntp
-4. 安装和配置mysql, jdk6, jdk7, datanode, tasktracker, hbase, drill
+4. 安装和配置mysql, jdk6, jdk7, datanode, tasktracker, hbase, maven
 5. 修改hdfs和mapred用户的限制
 6. 更新hosts
 """
@@ -19,12 +19,13 @@ from fabric.contrib.files import exists
 DOWNLOAD_DIR = "/home/hadoop/download/"
 RELEASE_DIR = "/home/hadoop/release/"
 BACKUP_DIR = "/home/hadoop/backup/"
+GIT_DIR= "/home/hadoop/git_project_home/"
 RUN_DIR = "/home/hadoop/run/"
 LIMIT_FILE= "/etc/security/limits.conf"
 PROFILE="/etc/profile"
 
 def make_dir():
-    for directory in (DOWNLOAD_DIR, RELEASE_DIR, BACKUP_DIR, RUN_DIR):
+    for directory in (DOWNLOAD_DIR, RELEASE_DIR, BACKUP_DIR, RUN_DIR,GIT_DIR):
         run("mkdir -p %s" % directory)
 def make_special_dir(dir):
     run("mkdir -p %s" % dir)
@@ -32,24 +33,13 @@ def make_special_dir(dir):
 def rsync_dir():
     # download目录里面应该有如下文件：jdk6 jdk7
     # release目录里面应该有如下文件：hbase drill
-    for directory in (DOWNLOAD_DIR, RELEASE_DIR):
+    for directory in (DOWNLOAD_DIR, RELEASE_DIR,GIT_DIR):
         local("rsync -avz --progress %s %s@%s:%s" % (directory, env.user, env.host, directory))
 def rsync_special_dir(dir):
 	local("rsync -avz --progress %s %s@%s:%s" % (dir, env.user, env.host, dir))
-def copy_config_tar():
-    file=os.path.join(BACKUP_DIR,"config.tar.gz")
-    local("rsync -avz --progress %s %s@%s:%s" % (file, env.user,env.host,file))
-    assert exists(file)
-
-def setup_config():
-    copy_config_tar()
-    file=os.path.join(BACKUP_DIR,"config.tar.gz")
-    print file
-    sudo("tar xzvf %s" % file)
 
 def install_mysql():
     sudo("yum -y install mysql mysql-server")
-
 
 def install_jdk6():
     jdk6_bin = "jdk-6u45-linux-x64.bin"
@@ -87,6 +77,8 @@ def install_maven():
     target_dir= "/usr/local"
     with cd(target_dir):
 	sudo("tar -zxf %s" % maven_tarball)
+def install_git():
+    sudo("yum -y install git")
 
 def enable_epel():
     epel_url = "http://ftp.cuhk.edu.hk/pub/linux/fedora-epel/6/i386/epel-release-6-8.noarch.rpm"
@@ -141,9 +133,12 @@ def install_lzo():
         sudo("yum -y install hadoop-lzo-cdh4")
 
 
-def install_hbase():
-    pass
-
+def install_hbase_region():
+    sudo("yum -y install hbase")
+    sudo("yum -y install hbase-regionserver")
+def install_hbase_master():
+    sudo("yum -y install hbase")
+    sudo("yum -y install hbase-master")
 
 def install_drill():
     pass
@@ -174,22 +169,50 @@ def modify_limits():
         sudo("cp %s %s" % (conf_path, src_dir))
 
 
-def setup():
+def setup_worker():
     make_dir()
     rsync_dir()
 
     enable_epel()
     enable_cloudera_repo()
 
+    install_fabric()
+
     install_datanode()
     install_tasktracker()
+    install_client()
     install_lzo()
-    install_hbase()
-    install_drill()
+    install_hbase_regionserver()
     install_mysql()
 
     install_jdk6()
     install_jdk7()
+    install_maven()
+    install_git()
+
+    install_ntp()
+    modify_limits()
+
+def setup_master():
+    make_dir()
+    rsync_dir()
+
+    enable_epel()
+    enable_cloudera_repo()
+
+    install_fabric()
+
+    install_namenode()
+    install_jobtracker()
+    install_client()
+    install_lzo()
+    install_hbase_master()
+    install_mysql()
+
+    install_jdk6()
+    install_jdk7()
+    install_maven()
+    install_git()
 
     install_ntp()
     modify_limits()
