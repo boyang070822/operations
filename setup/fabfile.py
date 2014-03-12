@@ -80,6 +80,17 @@ def install_maven():
 def install_git():
     sudo("yum -y install git")
 
+def install_protobuf():
+    proto_tarball= os.path.join(DOWNLOAD_DIR,"protobuf-2.5.0.tar.gz")
+    with cd("/usr/local/"):	
+    	sudo("tar xzvf %s " % proto_tarball)
+    	sudo("chown -R hadoop:hadoop protobuf-2.5.0")
+    	with cd("/usr/local/protobuf-2.5.0/"):
+		run("./configure")
+        	run("make")
+        	run("make test")
+        	sudo("make install")
+
 def enable_epel():
     epel_url = "http://ftp.cuhk.edu.hk/pub/linux/fedora-epel/6/i386/epel-release-6-8.noarch.rpm"
     epel_pkg = "epel-release-6-8.noarch.rpm"
@@ -182,7 +193,6 @@ def setup_worker():
     install_tasktracker()
     install_client()
     install_lzo()
-    install_hbase_regionserver()
     install_mysql()
 
     install_jdk6()
@@ -206,7 +216,6 @@ def setup_master():
     install_jobtracker()
     install_client()
     install_lzo()
-    install_hbase_master()
     install_mysql()
 
     install_jdk6()
